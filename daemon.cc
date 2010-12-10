@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <pwd.h>
 
 #define PID_MAXLEN 10
 
@@ -65,10 +66,39 @@ Handle<Value> LockD(const Arguments& args) {
 	return Boolean::New(true);
 }
 
+// Allow changing the real and effective user ID of this process so a root process
+// can become unprivileged
+Handle<Value> SetREUID(const Arguments& args) {
+	if(args.Length() == 0 || !args[0]->IsString())
+		return ThrowException(Exception::Error(
+			String::New("Must give a username to become")
+		));
+	
+	String::Utf8Value unescaped_string(args[0]->ToString());
+	
+	int username_len = args[0]->ToString()->Utf8Length();
+
+	char *username = (char*)malloc(username_len * 2 + 1);
+	
+	struct passwd* pwd_entry = getpwnam(username);
+	
+	if(pwd_entry) {
+		setreuid(pwd_entry->pw_uid, pwd_entry->pw_uid);
+	} else {
+		return ThrowException(Exception::Error(
+			String::New("User not found")
+		));
+	}
+	
+	free(username);
+}
+
+
 extern "C" void init(Handle<Object> target) {
 	HandleScope scope;
 	
 	target->Set(String::New("start"), FunctionTemplate::New(Start)->GetFunction());
 	target->Set(String::New("lock"), FunctionTemplate::New(LockD)->GetFunction());
 	target->Set(String::New("closeIO"), FunctionTemplate::New(CloseIO)->GetFunction());
+	target->Set(String::New("setreuid"), FunctionTemplate::New(SetREUID)->GetFunction());
 }
