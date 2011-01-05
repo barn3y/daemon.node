@@ -74,13 +74,9 @@ Handle<Value> SetREUID(const Arguments& args) {
 			String::New("Must give a username to become")
 		));
 	
-	String::Utf8Value unescaped_string(args[0]->ToString());
+	String::AsciiValue username(args[0]);
 	
-	int username_len = args[0]->ToString()->Utf8Length();
-
-	char *username = (char*)malloc(username_len * 2 + 1);
-	
-	struct passwd* pwd_entry = getpwnam(username);
+	struct passwd* pwd_entry = getpwnam(*username);
 	
 	if(pwd_entry) {
 		setreuid(pwd_entry->pw_uid, pwd_entry->pw_uid);
@@ -89,8 +85,6 @@ Handle<Value> SetREUID(const Arguments& args) {
 			String::New("User not found")
 		));
 	}
-	
-	free(username);
 }
 
 
